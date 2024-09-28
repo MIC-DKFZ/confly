@@ -5,7 +5,7 @@ import yaml
 import os
 
 
-def confify(config: Optional[str] = None, config_dir: Optional[str] = None, cli: bool = True):
+def confly(config: Optional[str] = None, config_dir: Optional[str] = None, cli: bool = True):
     """
     Main function to process and return the final configuration by merging
     and updating with command-line arguments and environment variables.

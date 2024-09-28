@@ -1,11 +1,11 @@
-# confify
+# confly
 
-[![License Apache Software License 2.0](https://img.shields.io/pypi/l/confify.svg?color=green)](https://github.com/Karol-G/confify/raw/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/confify.svg?color=green)](https://pypi.org/project/confify)
-[![Python Version](https://img.shields.io/pypi/pyversions/confify.svg?color=green)](https://python.org)
-[![tests](https://github.com/Karol-G/confify/workflows/tests/badge.svg)](https://github.com/Karol-G/confify/actions)
-![Unit Tests](https://github.com/Karol-G/confify/actions/workflows/test_and_deploy.yml/badge.svg?branch=main)
-[![codecov](https://codecov.io/gh/Karol-G/confify/branch/main/graph/badge.svg)](https://codecov.io/gh/Karol-G/confify)
+[![License Apache Software License 2.0](https://img.shields.io/pypi/l/confly.svg?color=green)](https://github.com/Karol-G/confly/raw/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/confly.svg?color=green)](https://pypi.org/project/confly)
+[![Python Version](https://img.shields.io/pypi/pyversions/confly.svg?color=green)](https://python.org)
+[![tests](https://github.com/Karol-G/confly/workflows/tests/badge.svg)](https://github.com/Karol-G/confly/actions)
+![Unit Tests](https://github.com/Karol-G/confly/actions/workflows/test_and_deploy.yml/badge.svg?branch=main)
+[![codecov](https://codecov.io/gh/Karol-G/confly/branch/main/graph/badge.svg)](https://codecov.io/gh/Karol-G/confly)
 
 A simple configuration manager for machine learning projects.
 
@@ -15,9 +15,9 @@ Project description...
 
 ## Installation
 
-You can install `confify` via [pip](https://pypi.org/project/confify/):
+You can install `confly` via [pip](https://pypi.org/project/confly/):
 
-    pip install confify
+    pip install confly
 
 
 
@@ -30,7 +30,7 @@ the coverage at least stays the same before you submit a pull request.
 ## License
 
 Distributed under the terms of the [Apache Software License 2.0] license,
-"confify" is free and open source software
+"confly" is free and open source software
 
 ## Issues
 
