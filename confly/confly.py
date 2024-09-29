@@ -3,6 +3,11 @@ from pathlib import Path
 from typing import Optional
 import yaml
 import os
+import re
+
+CFG_PATTERN = r"\$\{cfg:\s*([^\}]+)\}"
+ENV_PATTERN = r"\$\{env:\s*([^\}]+)\}"
+VAR_PATTERN = r"\$\{var:\s*([^\}]+)\}"
 
 
 def confly(config: Optional[str] = None, config_dir: Optional[str] = None, cli: bool = True):
@@ -119,13 +124,21 @@ def interpolate(config: dict, sub_config: dict, config_dir: Path, interpolate_va
     elif isinstance(sub_config, list):
         for i in range(len(sub_config)):
             sub_config[i] = interpolate(config, sub_config[i], config_dir, interpolate_variables)
-    elif isinstance(sub_config, str) and sub_config[:6] == "${cfg:" and sub_config[-1] == "}":
-        sub_config = interpolate_config(sub_config[6:-1], config_dir, interpolate_variables)
-    elif isinstance(sub_config, str) and sub_config[:6] == "${env:" and sub_config[-1] == "}":
-        sub_config = os.path.expandvars(sub_config[6:-1])
-    elif isinstance(sub_config, str) and sub_config[:6] == "${var:" and sub_config[-1] == "}" and interpolate_variables:
-        sub_config = interpolate_variable(sub_config[6:-1], config)
+    elif isinstance(sub_config, str) and len(re.findall(CFG_PATTERN, sub_config)) > 0:
+        sub_config = interpolate_config(sub_config, config_dir, interpolate_variables)
+    elif isinstance(sub_config, str) and len(re.findall(ENV_PATTERN, sub_config)) > 0:
+        sub_config = interpolate_env(sub_config)
+    elif isinstance(sub_config, str) and len(re.findall(VAR_PATTERN, sub_config)) > 0 and interpolate_variables:
+        sub_config = interpolate_variable(sub_config, config)
     return sub_config
+
+
+def interpolate_env(variable: str):
+    matches = re.findall(ENV_PATTERN, variable)
+    for match in matches:
+        env_var = os.path.expandvars("$" + match)
+        variable = variable.replace("${env:" + match + "}", env_var)
+    return variable
 
 
 def interpolate_config(variable: str, config_dir: Path, interpolate_variables: bool):
@@ -140,6 +153,7 @@ def interpolate_config(variable: str, config_dir: Path, interpolate_variables: b
     Returns:
         dict: The interpolated configuration from multiple files.
     """
+    variable = variable[6:-1]
     variable = variable.replace(" ", "")
     configs = variable.split(",")
     config = {}
@@ -164,6 +178,7 @@ def interpolate_variable(variable: str, config: dict):
     Raises:
         RuntimeError: If the variable cannot be resolved.
     """
+    variable = variable[6:-1]
     keys = variable.split(".")
     interpolated_variable = config
     for key in keys:
