@@ -1,11 +1,11 @@
-# confly
+# pyconfly
 
-[![License Apache Software License 2.0](https://img.shields.io/pypi/l/confly.svg?color=green)](https://github.com/Karol-G/confly/raw/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/confly.svg?color=green)](https://pypi.org/project/confly)
-[![Python Version](https://img.shields.io/pypi/pyversions/confly.svg?color=green)](https://python.org)
-[![tests](https://github.com/Karol-G/confly/workflows/tests/badge.svg)](https://github.com/Karol-G/confly/actions)
-![Unit Tests](https://github.com/Karol-G/confly/actions/workflows/test_and_deploy.yml/badge.svg?branch=main)
-[![codecov](https://codecov.io/gh/Karol-G/confly/branch/main/graph/badge.svg)](https://codecov.io/gh/Karol-G/confly)
+[![License Apache Software License 2.0](https://img.shields.io/pypi/l/pyconfly.svg?color=green)](https://github.com/Karol-G/pyconfly/raw/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/pyconfly.svg?color=green)](https://pypi.org/project/pyconfly)
+[![Python Version](https://img.shields.io/pypi/pyversions/pyconfly.svg?color=green)](https://python.org)
+[![tests](https://github.com/Karol-G/pyconfly/workflows/tests/badge.svg)](https://github.com/Karol-G/pyconfly/actions)
+![Unit Tests](https://github.com/Karol-G/pyconfly/actions/workflows/test_and_deploy.yml/badge.svg?branch=main)
+[![codecov](https://codecov.io/gh/Karol-G/pyconfly/branch/main/graph/badge.svg)](https://codecov.io/gh/Karol-G/pyconfly)
 
 A simple configuration manager for machine learning projects.
 
@@ -15,9 +15,9 @@ Project description...
 
 ## Installation
 
-You can install `confly` via [pip](https://pypi.org/project/confly/):
+You can install `pyconfly` via [pip](https://pypi.org/project/pyconfly/):
 
-    pip install confly
+    pip install pyconfly
 
 
 
@@ -30,7 +30,7 @@ the coverage at least stays the same before you submit a pull request.
 ## License
 
 Distributed under the terms of the [Apache Software License 2.0] license,
-"confly" is free and open source software
+"pyconfly" is free and open source software
 
 ## Issues
 
