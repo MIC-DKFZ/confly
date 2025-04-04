@@ -100,7 +100,7 @@ def update_parameters(arg_parameters: list, config: dict):
             if key not in sub_config:
                 sub_config[key] = {}
             sub_config = sub_config[key]
-        sub_config[keys[-1]] = value
+        sub_config[keys[-1]] = maybe_convert_to_numeric(value)
     return config
 
 
@@ -208,3 +208,23 @@ def load_conf(filepath: Path):
     with open(filepath, 'r') as file:
         conf = yaml.safe_load(file)
     return conf
+
+
+def maybe_convert_to_numeric(s):
+    """
+    Convert a numeric string to an int or float, or return the original string if it's not numeric.
+    
+    Args:
+        s (str): The input string.
+    
+    Returns:
+        int, float, or str: Converted number if numeric, else the original string.
+    """
+    if s.isdigit():  # Check for integers (positive)
+        return int(s)
+
+    try:
+        num = float(s)  # Convert to float (handles negative, decimals, scientific notation)
+        return int(num) if num.is_integer() else num  # Convert to int if there's no decimal part
+    except ValueError:
+        return s  # Return original string if not numeric
