@@ -1,0 +1,21 @@
+model:
+  arch: cnn
+  size: big
+  paras:
+    para1: test
+    para2: 5
+    para3: 3e-5
+    para4: 0.01
+    para5: -0.002
+    para6: [null, 512, 128]
+    para7: {"hello": test}
+    para8:
+      - a
+      - b
+      - c
+    para9: null
+training:
+  lr: 0.01
+  epochs: 1000
+preprocessing:
+  img_size: 512

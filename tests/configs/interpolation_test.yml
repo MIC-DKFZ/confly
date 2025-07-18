@@ -1,0 +1,24 @@
+model:
+  arch: cnn
+  size: big
+  paras:
+    para1: test
+    para2: 5
+    para3: 3e-5
+    para4: ${var:training.lr}
+    para5: -0.002
+    para6: [null, 512, 128]
+    para7: {"hello": test}
+    para8:
+      - a
+      - b
+      - c
+    para9: null
+    para10: ${cfg:tests/configs/a_test}
+    para11: ${cfg:tests/configs/b_test}
+    para12: ${mul:7,${add:5,2}}
+training:
+  lr: 0.01
+  epochs: 1000
+preprocessing:
+  img_size: 512
