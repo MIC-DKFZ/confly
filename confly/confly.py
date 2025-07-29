@@ -6,13 +6,10 @@ import os
 import operator
 from functools import reduce
 import regex
+import math
 
 
-class Confly:
-    def __init__(self, config: Optional[Union[str, Path, dict]] = None, config_dir: Optional[Union[str, Path]] = None, args: List[str] = None, cli: bool = False):
-        self.config = config
-        self.config_dir = config_dir
-        self.general_op_regex = regex.compile(r"""
+GENERAL_OP_REGEX = regex.compile(r"""
             \$\{
                 (?P<op>\w+)          # Operation name (add, mul, etc.)
                 \s*:\s*              # Colon with optional spaces
@@ -25,7 +22,9 @@ class Confly:
                 )
             \}
         """, regex.VERBOSE)
-        self.cfg_regex = regex.compile(r"""
+
+
+CFG_REGEX = regex.compile(r"""
             \$\{
                 (?P<op>cfg)           # Only match 'cfg' literally
                 \s*:\s*               # Colon with optional spaces
@@ -37,7 +36,32 @@ class Confly:
                 )
             \}
         """, regex.VERBOSE)
-        self.op_regex = None
+
+
+VAR_REGEX = regex.compile(r"""
+            \$\{
+                (?P<op>var)           # Only match 'cfg' literally
+                \s*:\s*               # Colon with optional spaces
+                (?P<arg>              # Start capturing argument
+                    (?:               # Non-capturing group for content
+                        [^{}]+        # Non-brace content
+                        | \{ (?0) \}  # Or nested {...} recursively
+                    )*
+                )
+            \}
+        """, regex.VERBOSE)
+
+
+OPERATOR_MAPPING = {
+    "div": operator.truediv,
+    "sqrt": None
+}
+
+
+class Confly:
+    def __init__(self, config: Optional[Union[str, Path, dict]] = None, config_dir: Optional[Union[str, Path]] = None, args: List[str] = None, cli: bool = False):
+        self.config = config
+        self.config_dir = config_dir
 
         if isinstance(self.config, Path):
             self.config = str(self.config)
@@ -48,33 +72,17 @@ class Confly:
             self.config_dir = Path.cwd()
 
         if isinstance(self.config, str):
-            # arg_configs, arg_parameters = self._parse_args(args, cli)
-            # self.config = self._update_config(arg_configs)
-            # self.config = self._interpolate(self.config, self._interpolate_cfg, r'\$\{cfg:\s*([^}]+)\}')
-            # self.config = self._interpolate(self.config, self._interpolate_env, r'\$\{env:\s*([^}]+)\}')
-            # self.config = self._update_parameters(arg_parameters)
-            # self.config = self._interpolate(self.config, self._interpolate_cfg, r'\$\{cfg:\s*([^}]+)\}')
-            # self.config = self._interpolate(self.config, self._interpolate_env, r'\$\{env:\s*([^}]+)\}')
-            # self.config = self._interpolate(self.config, self._interpolate_var, r'\$\{var:\s*([^}]+)\}')
-            # self.config = self._interpolate(self.config, self._interpolate_var, r'\$\{(add|sub|mul|div|sqrt|pow):\s*([^}]+)\}')
-            # self.config = self._apply_recursively(self._maybe_convert_to_numeric, self.config)
-
-            arg_configs, arg_parameters = self._parse_args(args, cli)
+            arg_configs, overrides = self._parse_args(args, cli)
             self.config = self._update_config(arg_configs)
-            self.op_regex = self.cfg_regex
-            self.config = self._interpolate(self.config)
-            self.config = self._update_parameters(arg_parameters)
-            self.op_regex = self.general_op_regex
-            self.config = self._interpolate(self.config)
+            self.config = self._interpolate(self.config, self.config, CFG_REGEX, "", overrides)
+            self.config = self._update_overrides(overrides)
+            self.config = self._interpolate(self.config, self.config, GENERAL_OP_REGEX, "", overrides)
             self.config = self._apply_recursively(self._maybe_convert_to_numeric, self.config)
         
         for key, value in self.config.items():
             setattr(self, key, Confly(value) if isinstance(value, dict) else value)
         del self.config
         del self.config_dir
-        del self.op_regex
-        del self.general_op_regex
-        del self.cfg_regex
 
 
     def _parse_args(self, args, cli: bool):
@@ -93,12 +101,14 @@ class Confly:
             args = []
         if cli:
             args.append(sys.argv[1:])
-        configs, parameters = [], []  
+        configs, parameters = [], {}
         for arg in args:
             if "=" in arg:
-                parameters.append(arg)
+                arg = arg if arg[0] == "." else "." + arg
+                arg = arg.split("=")                
+                parameters[arg[0]] = arg[1]
             elif "--" in arg:
-                parameters.append(arg[2:] + "=True")
+                parameters["." + arg[2:]] = True
             else:
                 configs.append(arg)
         return configs, parameters
@@ -121,53 +131,61 @@ class Confly:
             config = "${cfg:" + ",".join(arg_configs) + "}"
         return config
         
-    def _interpolate(self, obj):
-        if isinstance(obj, dict):
-            return {k: self._interpolate(v) for k, v in obj.items()}
-        elif isinstance(obj, list) or isinstance(obj, tuple):
-            return [self._interpolate(elem) for elem in obj]
-        elif isinstance(obj, str) and self._is_entire_expression(obj):
-            expr, op, arg = self._get_expression(obj)
-            obj = self._interpolate_op(expr, op, arg)
+    def _interpolate(self, obj, conf, op_regex, current_path, overrides=None):
+        if overrides is not None and current_path in overrides:
+            obj = overrides[current_path]
             return obj
-        elif isinstance(obj, str) and self._contains_expression(obj):
-            while self._contains_expression(obj):
-                expr, op, arg = self._get_expression(obj)
-                interpolated_expr = self._interpolate(expr)
-                obj = obj.replace(expr, interpolated_expr, 1)
+        if isinstance(obj, dict):
+            return {k: self._interpolate(v, conf, op_regex, f"{current_path}.{k}", overrides) for k, v in obj.items()}
+        elif isinstance(obj, list) or isinstance(obj, tuple):
+            return [self._interpolate(elem, conf, op_regex, current_path, overrides) for elem in obj]
+        elif isinstance(obj, str) and self._is_entire_expression(obj, op_regex):
+            expr, op, arg = self._get_expression(obj, op_regex)
+            obj = self._interpolate_op(expr, op, arg, conf)
+            obj = self._interpolate(obj, conf, op_regex, current_path, overrides)
+            if op_regex == CFG_REGEX:
+                obj = self._interpolate(obj, obj, VAR_REGEX, current_path, overrides)
+            return obj
+        elif isinstance(obj, str) and self._contains_expression(obj, op_regex):
+            while self._contains_expression(obj, op_regex):
+                expr, op, arg = self._get_expression(obj, op_regex)
+                interpolated_expr = self._interpolate(expr, conf, op_regex, current_path, overrides)
+                obj = obj.replace(expr, str(interpolated_expr), 1)
             return obj
         else:
             return obj
 
-    def _is_entire_expression(self, obj: str) -> bool:
-        return bool(regex.fullmatch(self.op_regex, obj))
+    def _is_entire_expression(self, obj: str, op_regex) -> bool:
+        return bool(regex.fullmatch(op_regex, obj))
 
-    def _contains_expression(self, obj: str) -> bool:
-        return bool(regex.search(self.op_regex, obj))
+    def _contains_expression(self, obj: str, op_regex) -> bool:
+        return bool(regex.search(op_regex, obj))
     
-    def _get_expression(self, obj: str):
-        for m in self.op_regex.finditer(obj):
+    def _get_expression(self, obj: str, op_regex):
+        for m in op_regex.finditer(obj):
             expr = m.group(0)
             op = m.group("op")
             arg = m.group("arg")
             break
         return expr, op, arg
     
-    def _interpolate_op(self, expr, op, arg):
+    def _interpolate_op(self, expr, op, arg, conf):
         if op == "var":
-            return self._interpolate_var(arg)
+            return self._interpolate_var(arg, conf)
+        if op == "gvar":
+            return self._interpolate_var(arg, self.config)
         elif op == "cfg":
             return self._interpolate_cfg(arg)
         elif op == "env":
             return self._interpolate_env(arg)
-        elif hasattr(operator, op):
+        elif hasattr(operator, op) or hasattr(math, op) or op in OPERATOR_MAPPING:
             return self._interpolate_math(op, arg)
         else:
             return expr
 
-    def _interpolate_var(self, obj):
+    def _interpolate_var(self, obj, conf):
         keys = obj.split(".")
-        interpolated_variable = self.config
+        interpolated_variable = conf
         for key in keys:
             if key not in interpolated_variable:
                 raise RuntimeError(f"Interpolation failed as {obj} is not defined.")
@@ -193,11 +211,22 @@ class Confly:
     def _interpolate_math(self, op, args):
         args = [arg.strip() for arg in args.split(",")]
         args = self._apply_recursively(self._maybe_convert_to_numeric, args)
-        op = getattr(operator, op)
-        result = str(reduce(op, args))
+        if op == "sqrt" and len(args) == 2:
+            result = str(math.pow(args[0], 1/args[1]))
+        elif op in OPERATOR_MAPPING:
+            op = OPERATOR_MAPPING[op]
+            result = str(op(*args))
+        elif hasattr(operator, op):
+            op = getattr(operator, op)
+            result = str(reduce(op, args))
+        elif hasattr(operator, math):
+            op = getattr(math, op)
+            result = str(op(*args))
+        else:
+            raise RuntimeError(f"Operator ({op}) must be a function of 'operator', 'math' or 'OPERATOR_MAPPING'.")
         return result    
 
-    def _update_parameters(self, arg_parameters: list):
+    def _update_overrides(self, overrides: list):
         """
         Update the configuration with command-line parameter overrides.
 
@@ -208,8 +237,8 @@ class Confly:
         Returns:
             dict: The updated configuration with parameter overrides applied.
         """
-        for para in arg_parameters:
-            key_path, value = para.split("=")
+        for key_path, value in overrides.items():
+            key_path = key_path[1:]
             keys = key_path.split(".")
             sub_config = self.config
             for key in keys[:-1]:
