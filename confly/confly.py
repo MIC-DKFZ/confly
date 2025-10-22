@@ -7,6 +7,7 @@ import operator
 from functools import reduce
 import regex
 import math
+import ast
 
 
 GENERAL_OP_REGEX = regex.compile(r"""
@@ -77,7 +78,7 @@ class Confly:
             self.config = self._interpolate(self.config, self.config, CFG_REGEX, "", overrides)
             self.config = self._update_overrides(overrides)
             self.config = self._interpolate(self.config, self.config, GENERAL_OP_REGEX, "", overrides)
-            self.config = self._apply_recursively(self._maybe_convert_to_numeric, self.config)
+            self.config = self._apply_recursively(self._maybe_convert_from_string, self.config)
         
         for key, value in self.config.items():
             setattr(self, key, Confly(value) if isinstance(value, dict) else value)
@@ -210,7 +211,7 @@ class Confly:
     
     def _interpolate_math(self, op, args):
         args = [arg.strip() for arg in args.split(",")]
-        args = self._apply_recursively(self._maybe_convert_to_numeric, args)
+        args = self._apply_recursively(self._maybe_convert_from_string, args)
         if op == "sqrt" and len(args) == 2:
             result = str(math.pow(args[0], 1/args[1]))
         elif op in OPERATOR_MAPPING:
@@ -266,6 +267,13 @@ class Confly:
         with open(filepath, 'r') as file:
             conf = yaml.safe_load(file)
         return conf
+    
+    def _maybe_convert_from_string(self, s):
+        s, is_converted = self._maybe_convert_to_numeric(s)
+        if is_converted:
+            return s
+        s = self._maybe_convert_to_list(s)
+        return s
 
     def _maybe_convert_to_numeric(self, s):
         """
@@ -276,17 +284,53 @@ class Confly:
         
         Returns:
             int, float, or str: Converted number if numeric, else the original string.
+            bool: Whether the string is returned as number.
         """
         if not isinstance(s, str):
-            return s
+            return s, True
         if s.isdigit():  # Check for integers (positive)
-            return int(s)
+            return int(s), True
 
         try:
             num = float(s)  # Convert to float (handles negative, decimals, scientific notation)
-            return int(num) if num.is_integer() else num  # Convert to int if there's no decimal part
+            return (int(num), True) if num.is_integer() else (num, False)  # Convert to int if there's no decimal part
         except ValueError:
-            return s  # Return original string if not numeric        
+            return s, False  # Return original string if not numeric  
+
+    def _maybe_convert_to_list(self, s: str):
+        """
+        Parse a Hydra-style list string (possibly nested) into a Python list.
+        Examples:
+        "[1,2,3]"          -> [1, 2, 3]
+        "[[1,2],[3,4]]"    -> [[1, 2], [3, 4]]
+        '["a","b"]'        -> ["a", "b"]
+        '[[1,"x"],[2,"y"]]' -> [[1, 'x'], [2, 'y']]
+        """
+        if not isinstance(s, str):
+            return s  # already a list or other type
+
+        s = s.strip()
+
+        # Quick check for list syntax
+        if not (s.startswith("[") and s.endswith("]")):
+            return s
+
+        try:
+            # Try to safely evaluate using Python literal syntax
+            # This handles nested lists, ints, floats, strings, etc.
+            value = ast.literal_eval(s)
+        except (ValueError, SyntaxError):
+            # Fallback: try YAML-style (in case of unquoted items)
+            import yaml
+            try:
+                value = yaml.safe_load(s)
+            except Exception as e:
+                raise ValueError(f"Could not parse list: {s}") from e
+
+        if not isinstance(value, list):
+            raise ValueError(f"Parsed value is not a list: {value}")
+
+        return value
 
     def _apply_recursively(self, func, obj, *args):
         """
