@@ -272,6 +272,12 @@ class Confly:
         s, is_converted = self._maybe_convert_to_numeric(s)
         if is_converted:
             return s
+        s, is_converted = self._maybe_convert_to_none(s)
+        if is_converted:
+            return s
+        s, is_converted = self._maybe_convert_to_boolean(s)
+        if is_converted:
+            return s
         s = self._maybe_convert_to_list(s)
         return s
 
@@ -296,6 +302,20 @@ class Confly:
             return (int(num), True) if num.is_integer() else (num, False)  # Convert to int if there's no decimal part
         except ValueError:
             return s, False  # Return original string if not numeric  
+        
+    def _maybe_convert_to_none(self, s):
+        if isinstance(s, str) and s == "null":
+            return None, True
+        else:
+            return s, False
+        
+    def _maybe_convert_to_boolean(self, s):
+        if isinstance(s, str) and s in {"True", "true"}:
+            return True, True
+        elif isinstance(s, str) and s in {"False", "false"}:
+            return False, True
+        else:
+            return s, False
 
     def _maybe_convert_to_list(self, s: str):
         """
